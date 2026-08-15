@@ -1,0 +1,4 @@
+node_modules/
+moser.db
+client-files/
+*.log

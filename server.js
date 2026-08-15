@@ -39,6 +39,7 @@ async function initDB() {
       hwid TEXT DEFAULT '',
       token TEXT UNIQUE,
       plan TEXT DEFAULT 'free',
+      expires_at DATETIME DEFAULT NULL,
       created DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -125,9 +126,9 @@ app.post("/api/auth/register", (req, res) => {
   const token = generateToken();
 
   try {
-    runSql("INSERT INTO users (login, password_hash, hwid, token) VALUES (?, ?, ?, ?)", [login, hash, hwid, token]);
+    runSql("INSERT INTO users (login, password_hash, hwid, token, plan, expires_at) VALUES (?, ?, ?, ?, 'free', NULL)", [login, hash, hwid, token]);
     console.log(`[Register] ${login} (hwid: ${hwid.substring(0, 8)}...)`);
-    res.json({ token, login, plan: "free" });
+    res.json({ token, login, plan: "free", expires: null });
   } catch (err) {
     console.error("[Register] Error:", err.message);
     res.json({ error: "Ошибка регистрации" });
@@ -153,8 +154,13 @@ app.post("/api/auth/login", (req, res) => {
   const token = user.token || generateToken();
   runSql("UPDATE users SET hwid = ?, token = ? WHERE id = ?", [hwid, token, user.id]);
 
+  let plan = user.plan;
+  if (user.expires_at && new Date(user.expires_at) < new Date()) {
+    plan = "free";
+  }
+
   console.log(`[Login] ${login}`);
-  res.json({ token, login: user.login, plan: user.plan });
+  res.json({ token, login: user.login, plan, expires: user.expires_at });
 });
 
 app.get("/api/auth/check", (req, res) => {
@@ -165,7 +171,12 @@ app.get("/api/auth/check", (req, res) => {
   if (!user) return res.json({ error: "Невалидный токен" });
   if (user.hwid && user.hwid !== hwid) return res.json({ error: "HWID не совпадает" });
 
-  res.json({ valid: true, login: user.login, plan: user.plan, expires: null });
+  let plan = user.plan;
+  if (user.expires_at && new Date(user.expires_at) < new Date()) {
+    plan = "free";
+  }
+
+  res.json({ valid: true, login: user.login, plan, expires: user.expires_at });
 });
 
 app.post("/api/auth/activate", (req, res) => {
@@ -178,12 +189,16 @@ app.post("/api/auth/activate", (req, res) => {
   const login = "user_" + key.substring(6, 14).toLowerCase();
   const token = generateToken();
 
-  runSql("INSERT INTO users (login, password_hash, hwid, token, plan) VALUES (?, '', ?, ?, ?)", [login, hwid, token, keyRow.plan]);
+  const planDays = { month: 30, "3months": 90, lifetime: 36500 };
+  const days = planDays[keyRow.plan] || 30;
+  const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+
+  runSql("INSERT INTO users (login, password_hash, hwid, token, plan, expires_at) VALUES (?, '', ?, ?, ?, ?)", [login, hwid, token, keyRow.plan, expiresAt]);
   const user = queryOne("SELECT id FROM users WHERE token = ?", [token]);
   runSql("UPDATE keys SET used = 1, user_id = ? WHERE id = ?", [user.id, keyRow.id]);
 
-  console.log(`[Activate] Key ${key} → ${login} (${keyRow.plan})`);
-  res.json({ token, login, plan: keyRow.plan });
+  console.log(`[Activate] Key ${key} → ${login} (${keyRow.plan}, expires: ${expiresAt})`);
+  res.json({ token, login, plan: keyRow.plan, expires: expiresAt });
 });
 
 // --- Admin ---

@@ -115,12 +115,12 @@ function generateKeyCode() {
 app.post("/api/auth/register", (req, res) => {
   const { login, password, hwid } = req.body;
 
-  if (!login || login.length < 3) return res.json({ error: "Логин минимум 3 символа" });
-  if (!password || password.length < 6) return res.json({ error: "Пароль минимум 6 символов" });
-  if (!hwid) return res.json({ error: "HWID обязателен" });
+  if (!login || login.length < 3) return res.json({ error: "Р›РѕРіРёРЅ РјРёРЅРёРјСѓРј 3 СЃРёРјРІРѕР»Р°" });
+  if (!password || password.length < 6) return res.json({ error: "РџР°СЂРѕР»СЊ РјРёРЅРёРјСѓРј 6 СЃРёРјРІРѕР»РѕРІ" });
+  if (!hwid) return res.json({ error: "HWID РѕР±СЏР·Р°С‚РµР»РµРЅ" });
 
   const existing = queryOne("SELECT id FROM users WHERE login = ?", [login]);
-  if (existing) return res.json({ error: "Пользователь уже существует" });
+  if (existing) return res.json({ error: "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚" });
 
   const hash = bcrypt.hashSync(password, 10);
   const token = generateToken();
@@ -131,24 +131,24 @@ app.post("/api/auth/register", (req, res) => {
     res.json({ token, login, plan: "free", expires: null });
   } catch (err) {
     console.error("[Register] Error:", err.message);
-    res.json({ error: "Ошибка регистрации" });
+    res.json({ error: "РћС€РёР±РєР° СЂРµРіРёСЃС‚СЂР°С†РёРё" });
   }
 });
 
 app.post("/api/auth/login", (req, res) => {
   const { login, password, hwid } = req.body;
 
-  if (!login || !password || !hwid) return res.json({ error: "Все поля обязательны" });
+  if (!login || !password || !hwid) return res.json({ error: "Р’СЃРµ РїРѕР»СЏ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹" });
 
   const user = queryOne("SELECT * FROM users WHERE login = ?", [login]);
-  if (!user) return res.json({ error: "Неверный логин или пароль" });
+  if (!user) return res.json({ error: "РќРµРІРµСЂРЅС‹Р№ Р»РѕРіРёРЅ РёР»Рё РїР°СЂРѕР»СЊ" });
 
   if (user.password_hash && !bcrypt.compareSync(password, user.password_hash)) {
-    return res.json({ error: "Неверный логин или пароль" });
+    return res.json({ error: "РќРµРІРµСЂРЅС‹Р№ Р»РѕРіРёРЅ РёР»Рё РїР°СЂРѕР»СЊ" });
   }
 
   if (user.hwid && user.hwid !== hwid) {
-    return res.json({ error: "Аккаунт привязан к другому устройству" });
+    return res.json({ error: "РђРєРєР°СѓРЅС‚ РїСЂРёРІСЏР·Р°РЅ Рє РґСЂСѓРіРѕРјСѓ СѓСЃС‚СЂРѕР№СЃС‚РІСѓ" });
   }
 
   const token = user.token || generateToken();
@@ -165,11 +165,11 @@ app.post("/api/auth/login", (req, res) => {
 
 app.get("/api/auth/check", (req, res) => {
   const { token, hwid } = req.query;
-  if (!token || !hwid) return res.json({ error: "token и hwid обязательны" });
+  if (!token || !hwid) return res.json({ error: "token Рё hwid РѕР±СЏР·Р°С‚РµР»СЊРЅС‹" });
 
   const user = queryOne("SELECT * FROM users WHERE token = ?", [token]);
-  if (!user) return res.json({ error: "Невалидный токен" });
-  if (user.hwid && user.hwid !== hwid) return res.json({ error: "HWID не совпадает" });
+  if (!user) return res.json({ error: "РќРµРІР°Р»РёРґРЅС‹Р№ С‚РѕРєРµРЅ" });
+  if (user.hwid && user.hwid !== hwid) return res.json({ error: "HWID РЅРµ СЃРѕРІРїР°РґР°РµС‚" });
 
   let plan = user.plan;
   if (user.expires_at && new Date(user.expires_at) < new Date()) {
@@ -180,32 +180,43 @@ app.get("/api/auth/check", (req, res) => {
 });
 
 app.post("/api/auth/activate", (req, res) => {
-  const { key, hwid } = req.body;
-  if (!key || !hwid) return res.json({ error: "Ключ и HWID обязательны" });
+  const { key, hwid, token } = req.body;
+  if (!key || !hwid) return res.json({ error: "РљР»СЋС‡ Рё HWID РѕР±СЏР·Р°С‚РµР»СЊРЅС‹" });
 
   const keyRow = queryOne("SELECT * FROM keys WHERE key_code = ? AND used = 0", [key]);
-  if (!keyRow) return res.json({ error: "Неверный или использованный ключ" });
-
-  const login = "user_" + key.substring(6, 14).toLowerCase();
-  const token = generateToken();
+  if (!keyRow) return res.json({ error: "РќРµРІРµСЂРЅС‹Р№ РёР»Рё РёСЃРїРѕР»СЊР·РѕРІР°РЅРЅС‹Р№ РєР»СЋС‡" });
 
   const planDays = { month: 30, "3months": 90, lifetime: 36500 };
   const days = planDays[keyRow.plan] || 30;
   const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
 
-  runSql("INSERT INTO users (login, password_hash, hwid, token, plan, expires_at) VALUES (?, '', ?, ?, ?, ?)", [login, hwid, token, keyRow.plan, expiresAt]);
-  const user = queryOne("SELECT id FROM users WHERE token = ?", [token]);
-  runSql("UPDATE keys SET used = 1, user_id = ? WHERE id = ?", [user.id, keyRow.id]);
+  let login, userToken;
 
-  console.log(`[Activate] Key ${key} → ${login} (${keyRow.plan}, expires: ${expiresAt})`);
-  res.json({ token, login, plan: keyRow.plan, expires: expiresAt });
+  const existingUser = token ? queryOne("SELECT * FROM users WHERE token = ?", [token]) : null;
+
+  if (existingUser) {
+    runSql("UPDATE users SET plan = ?, expires_at = ? WHERE id = ?", [keyRow.plan, expiresAt, existingUser.id]);
+    runSql("UPDATE keys SET used = 1, user_id = ? WHERE id = ?", [existingUser.id, keyRow.id]);
+    login = existingUser.login;
+    userToken = existingUser.token;
+    console.log(`[Activate] Key ${key} в†’ ${login} (updated, ${keyRow.plan}, expires: ${expiresAt})`);
+  } else {
+    login = "user_" + key.substring(6, 14).toLowerCase();
+    userToken = generateToken();
+    runSql("INSERT INTO users (login, password_hash, hwid, token, plan, expires_at) VALUES (?, '', ?, ?, ?, ?)", [login, hwid, userToken, keyRow.plan, expiresAt]);
+    const user = queryOne("SELECT id FROM users WHERE token = ?", [userToken]);
+    runSql("UPDATE keys SET used = 1, user_id = ? WHERE id = ?", [user.id, keyRow.id]);
+    console.log(`[Activate] Key ${key} в†’ ${login} (new, ${keyRow.plan}, expires: ${expiresAt})`);
+  }
+
+  res.json({ token: userToken, login, plan: keyRow.plan, expires: expiresAt });
 });
 
 // --- Admin ---
 
 app.post("/api/admin/keys/generate", (req, res) => {
   const { plan, count } = req.body;
-  if (!plan || !count || count <= 0) return res.json({ error: "plan и count обязательны" });
+  if (!plan || !count || count <= 0) return res.json({ error: "plan Рё count РѕР±СЏР·Р°С‚РµР»СЊРЅС‹" });
 
   const keys = [];
   for (let i = 0; i < count; i++) {
@@ -237,7 +248,7 @@ app.get("/api/client/latest", (req, res) => {
 app.get("/api/client/download/:filename", (req, res) => {
   const filename = req.params.filename.replace(/[^a-zA-Z0-9._\-]/g, "");
   const filePath = path.join(CLIENT_DIR, filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Файл не найден" });
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ" });
   res.download(filePath);
 });
 

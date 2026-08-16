@@ -1,1 +1,1 @@
-// redeploy
+{\n  "name": "moser-server",\n  "version": "1.0.0",\n  "main": "server.js",\n  "dependencies": {\n    "bcryptjs": "^2.4.3",\n    "cors": "^2.8.5",\n    "express": "^4.21.0",\n    "sql.js": "^1.11.0"\n  }\n}

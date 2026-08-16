@@ -190,23 +190,29 @@ app.post("/api/auth/activate", (req, res) => {
   const days = planDays[keyRow.plan] || 30;
   const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
 
-  let login, userToken;
+  let existingUser = null;
+  if (token) {
+    existingUser = queryOne("SELECT * FROM users WHERE token = ?", [token]);
+  }
+  if (!existingUser && hwid) {
+    existingUser = queryOne("SELECT * FROM users WHERE hwid = ? AND hwid != ''", [hwid]);
+  }
 
-  const existingUser = token ? queryOne("SELECT * FROM users WHERE token = ?", [token]) : null;
+  let login, userToken;
 
   if (existingUser) {
     runSql("UPDATE users SET plan = ?, expires_at = ? WHERE id = ?", [keyRow.plan, expiresAt, existingUser.id]);
     runSql("UPDATE keys SET used = 1, user_id = ? WHERE id = ?", [existingUser.id, keyRow.id]);
     login = existingUser.login;
     userToken = existingUser.token;
-    console.log(`[Activate] Key ${key} в†’ ${login} (updated, ${keyRow.plan}, expires: ${expiresAt})`);
+    console.log(`[Activate] Key ${key} -> ${login} (updated, ${keyRow.plan}, expires: ${expiresAt})`);
   } else {
     login = "user_" + key.substring(6, 14).toLowerCase();
     userToken = generateToken();
     runSql("INSERT INTO users (login, password_hash, hwid, token, plan, expires_at) VALUES (?, '', ?, ?, ?, ?)", [login, hwid, userToken, keyRow.plan, expiresAt]);
     const user = queryOne("SELECT id FROM users WHERE token = ?", [userToken]);
     runSql("UPDATE keys SET used = 1, user_id = ? WHERE id = ?", [user.id, keyRow.id]);
-    console.log(`[Activate] Key ${key} в†’ ${login} (new, ${keyRow.plan}, expires: ${expiresAt})`);
+    console.log(`[Activate] Key ${key} -> ${login} (new, ${keyRow.plan}, expires: ${expiresAt})`);
   }
 
   res.json({ token: userToken, login, plan: keyRow.plan, expires: expiresAt });

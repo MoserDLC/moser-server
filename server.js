@@ -181,10 +181,10 @@ app.get("/api/auth/check", (req, res) => {
 
 app.post("/api/auth/activate", (req, res) => {
   const { key, hwid, token } = req.body;
-  if (!key || !hwid) return res.json({ error: "РљР»СЋС‡ Рё HWID РѕР±СЏР·Р°С‚РµР»СЊРЅС‹" });
+  if (!key || !hwid) return res.json({ error: "Ключ и HWID обязательны" });
 
   const keyRow = queryOne("SELECT * FROM keys WHERE key_code = ? AND used = 0", [key]);
-  if (!keyRow) return res.json({ error: "РќРµРІРµСЂРЅС‹Р№ РёР»Рё РёСЃРїРѕР»СЊР·РѕРІР°РЅРЅС‹Р№ РєР»СЋС‡" });
+  if (!keyRow) return res.json({ error: "Неверный или использованный ключ" });
 
   const planDays = { month: 30, "3months": 90, lifetime: 36500 };
   const days = planDays[keyRow.plan] || 30;

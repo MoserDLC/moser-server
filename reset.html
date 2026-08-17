@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moser — Сброс пароля</title>
+    <link rel="stylesheet" href="public/css/account.css">
+    <link rel="icon" href="public/images/icon.png" type="image/png">
+</head>
+<body>
+    <canvas id="shaderBg"></canvas>
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">
+                <img src="public/images/icon.png" alt="Moser" class="logo-icon">
+                MOSER
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html">Главная</a></li>
+                <li><a href="account.html">Аккаунт</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main">
+        <section class="auth-section">
+            <div class="auth-card">
+                <img src="public/images/icon.png" alt="Moser" class="auth-logo">
+                <h1 id="resetTitle">Сброс пароля</h1>
+                <p class="auth-subtitle" id="resetSubtitle">Введи почту чтобы получить код</p>
+
+                <!-- Step 1: Email -->
+                <form id="resetForm" class="auth-form">
+                    <div id="step1">
+                        <div class="form-field">
+                            <label>Email</label>
+                            <input type="email" id="resetEmail" placeholder="example@mail.com" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Отправить код</button>
+                    </div>
+
+                    <!-- Step 2: Code -->
+                    <div id="step2" style="display: none;">
+                        <div class="form-field">
+                            <label>Код из 6 цифр</label>
+                            <input type="text" id="resetCode" placeholder="000000" maxlength="6" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Проверить код</button>
+                        <div class="resend-code" id="resendCode">Отправить код повторно</div>
+                    </div>
+
+                    <!-- Step 3: New Password -->
+                    <div id="step3" style="display: none;">
+                        <div class="form-field">
+                            <label>Новый пароль</label>
+                            <input type="password" id="newPassword" placeholder="Минимум 6 символов" required>
+                        </div>
+                        <div class="form-field">
+                            <label>Повтори пароль</label>
+                            <input type="password" id="confirmPassword" placeholder="Ещё раз" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Сменить пароль</button>
+                    </div>
+
+                    <!-- Step 4: Done -->
+                    <div id="step4" style="display: none;">
+                        <div class="reset-success">
+                            <div class="success-icon">✓</div>
+                            <h3>Пароль изменён!</h3>
+                            <p>Теперь можешь войти с новым паролем</p>
+                            <a href="account.html" class="btn btn-primary" style="margin-top: 16px;">Войти в аккаунт</a>
+                        </div>
+                    </div>
+                </form>
+
+                <div id="resetError" class="auth-error"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="public/js/shader.js"></script>
+    <script>
+    let currentStep = 1;
+    let generatedCode = '';
+    let resetEmail = '';
+
+    function getUsers() {
+        return JSON.parse(localStorage.getItem('moser_users') || '{}');
+    }
+
+    function saveUsers(users) {
+        localStorage.setItem('moser_users', JSON.stringify(users));
+    }
+
+    function generateCode() {
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += Math.floor(Math.random() * 10);
+        }
+        return code;
+    }
+
+    function showStep(step) {
+        currentStep = step;
+        document.getElementById('step1').style.display = step === 1 ? 'block' : 'none';
+        document.getElementById('step2').style.display = step === 2 ? 'block' : 'none';
+        document.getElementById('step3').style.display = step === 3 ? 'block' : 'none';
+        document.getElementById('step4').style.display = step === 4 ? 'block' : 'none';
+        document.getElementById('resetError').textContent = '';
+    }
+
+    function sendCode() {
+        generatedCode = generateCode();
+        localStorage.setItem('moser_reset_code', JSON.stringify({
+            email: resetEmail,
+            code: generatedCode,
+            expires: Date.now() + 600000
+        }));
+        alert('Код отправлен на ' + resetEmail + '\n\nДля демонстрации код: ' + generatedCode);
+    }
+
+    document.getElementById('resetForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const errorEl = document.getElementById('resetError');
+
+        if (currentStep === 1) {
+            resetEmail = document.getElementById('resetEmail').value.trim();
+            const users = getUsers();
+            if (!users[resetEmail]) {
+                errorEl.textContent = 'Аккаунт с такой почтой не найден';
+                return;
+            }
+            sendCode();
+            document.getElementById('resetTitle').textContent = 'Проверь почту';
+            document.getElementById('resetSubtitle').textContent = 'Код отправлен на ' + resetEmail;
+            showStep(2);
+        }
+        else if (currentStep === 2) {
+            const code = document.getElementById('resetCode').value.trim();
+            const stored = JSON.parse(localStorage.getItem('moser_reset_code') || '{}');
+            if (!stored.code || stored.expires < Date.now()) {
+                errorEl.textContent = 'Код истёк. Запроси новый.';
+                return;
+            }
+            if (stored.code !== code || stored.email !== resetEmail) {
+                errorEl.textContent = 'Неверный код';
+                return;
+            }
+            document.getElementById('resetTitle').textContent = 'Новый пароль';
+            document.getElementById('resetSubtitle').textContent = 'Придумай надёжный пароль';
+            showStep(3);
+        }
+        else if (currentStep === 3) {
+            const newPass = document.getElementById('newPassword').value;
+            const confirmPass = document.getElementById('confirmPassword').value;
+            if (newPass.length < 6) {
+                errorEl.textContent = 'Пароль минимум 6 символов';
+                return;
+            }
+            if (newPass !== confirmPass) {
+                errorEl.textContent = 'Пароли не совпадают';
+                return;
+            }
+            const users = getUsers();
+            if (users[resetEmail]) {
+                users[resetEmail].password = newPass;
+                saveUsers(users);
+            }
+            localStorage.removeItem('moser_reset_code');
+            document.getElementById('resetTitle').textContent = 'Готово!';
+            document.getElementById('resetSubtitle').textContent = '';
+            showStep(4);
+        }
+    });
+
+    document.getElementById('resendCode').addEventListener('click', function() {
+        sendCode();
+        document.getElementById('resetError').textContent = 'Код отправлен повторно';
+    });
+    </script>
+</body>
+</html>

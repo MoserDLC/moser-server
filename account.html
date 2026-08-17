@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moser — Аккаунт</title>
+    <link rel="stylesheet" href="public/css/account.css">
+    <link rel="icon" href="public/images/icon.png" type="image/png">
+</head>
+<body>
+    <canvas id="shaderBg"></canvas>
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">
+                <img src="public/images/icon.png" alt="Moser" class="logo-icon">
+                MOSER
+            </a>
+            <ul class="nav-links">
+                <li><a href="index.html">Главная</a></li>
+                <li><a href="index.html#features">Возможности</a></li>
+                <li><a href="index.html#buy" class="btn-nav">Купить</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="main">
+        <!-- Auth Form -->
+        <section id="authSection" class="auth-section">
+            <div class="auth-card">
+                <img src="public/images/icon.png" alt="Moser" class="auth-logo">
+                <h1 id="authTitle">Вход в аккаунт</h1>
+                <p class="auth-subtitle" id="authSubtitle">Добро пожаловать обратно</p>
+
+                <form id="authForm" class="auth-form">
+                    <div id="usernameField" class="form-field" style="display: none;">
+                        <label>Имя пользователя</label>
+                        <input type="text" id="regUsername" placeholder="Придумай логин">
+                    </div>
+                    <div class="form-field">
+                        <label>Логин или Email</label>
+                        <input type="text" id="authEmail" placeholder="Логин или example@mail.com" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Пароль</label>
+                        <input type="password" id="authPassword" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="authBtn">Войти</button>
+                </form>
+
+                <div class="auth-switch">
+                    <span id="authSwitchText">Нет аккаунта?</span>
+                    <a href="#" id="authSwitchLink">Зарегистрироваться</a>
+                </div>
+
+                <div class="forgot-password">
+                    <a href="reset.html" target="_blank">Забыл пароль?</a>
+                </div>
+
+                <div id="authError" class="auth-error"></div>
+            </div>
+        </section>
+
+        <!-- Dashboard -->
+        <section id="dashboardSection" class="dashboard-section" style="display: none;">
+            <div class="dashboard-layout">
+                <aside class="dashboard-sidebar">
+                    <nav class="sidebar-nav">
+                        <a href="#" class="sidebar-item active" data-tab="account">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            Аккаунт
+                        </a>
+                        <a href="#" class="sidebar-item" data-tab="subscription">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                            Подписка
+                        </a>
+                    </nav>
+                </aside>
+
+                <div class="dashboard-content">
+                    <!-- Account Tab -->
+                    <div class="dashboard-tab active" id="tab-account">
+                        <div class="tab-header">
+                            <h1 class="tab-title">Аккаунт <span class="tab-subtitle">/ Ваш профиль, активность и данные аккаунта</span></h1>
+                        </div>
+
+                        <div class="profile-card">
+                            <div class="profile-left">
+                                <div class="profile-avatar-wrap">
+                                    <div class="profile-avatar" id="userAvatar">U</div>
+                                    <label class="avatar-upload" for="avatarInput" title="Сменить аватарку">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                    </label>
+                                    <input type="file" id="avatarInput" accept="image/*" hidden>
+                                </div>
+                                <div class="profile-info">
+                                    <h2 id="userName">Пользователь</h2>
+                                    <p id="userEmail">user@mail.com</p>
+                                </div>
+                            </div>
+                            <button class="btn btn-download" id="downloadBtn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Скачать
+                            </button>
+                        </div>
+
+                        <div class="details-section">
+                            <h3 class="details-heading"># ДЕТАЛИ АККАУНТА</h3>
+                            <div class="details-grid">
+                                <div class="detail-item">
+                                    <span class="detail-label"># UID</span>
+                                    <span class="detail-value" id="detailUid">—</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Роль</span>
+                                    <span class="detail-value" id="detailRole">Пользователь</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Логин</span>
+                                    <span class="detail-value" id="detailLogin">—</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> Почта</span>
+                                    <span class="detail-value" id="detailEmail">—</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Дата регистрации</span>
+                                    <span class="detail-value" id="detailDate">—</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> HWID</span>
+                                    <span class="detail-value detail-hwid" id="detailHwid">—</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="logout-row">
+                            <button class="btn btn-secondary" id="logoutBtn">Выйти из аккаунта</button>
+                        </div>
+                    </div>
+
+                    <!-- Subscription Tab -->
+                    <div class="dashboard-tab" id="tab-subscription">
+                        <div class="tab-header">
+                            <h1 class="tab-title">Подписка <span class="tab-subtitle">/ Управление тарифом и ключами</span></h1>
+                        </div>
+
+                        <div class="dashboard-status" id="statusCard">
+                            <div class="status-icon">⏳</div>
+                            <div>
+                                <h3>Нет активной подписки</h3>
+                                <p>Выбери тариф ниже чтобы получить доступ к Moser Client</p>
+                            </div>
+                        </div>
+
+                        <div class="key-activate-card">
+                            <div class="key-activate-left">
+                                <div class="key-activate-icon">🔑</div>
+                                <div>
+                                    <h3>Активировать ключ</h3>
+                                    <p>Введи ключ полученный после покупки</p>
+                                </div>
+                            </div>
+                            <form id="keyForm" class="key-form">
+                                <input type="text" id="licenseKey" placeholder="MOSER-XXXX-XXXX-XXXX" maxlength="25" required>
+                                <button type="submit" class="btn btn-primary">Активировать</button>
+                            </form>
+                            <div id="keyResult" class="key-result"></div>
+                        </div>
+
+                        <div class="pricing-section">
+                            <p class="pricing-label">ТАРИФЫ</p>
+                            <h2 class="pricing-title">Выбери свой доступ</h2>
+                            <p class="pricing-desc">Один аккаунт — все функции. Чем дольше срок, тем выгоднее цена.</p>
+
+                            <div class="pricing-layout">
+                                <div class="pricing-details" id="pricingDetails">
+                                    <div class="details-header">
+                                        <span class="details-badge active" id="detailsBadge">1 МЕСЯЦ</span>
+                                        <span class="details-tag" id="detailsTag"></span>
+                                    </div>
+                                    <div class="details-price">
+                                        <span class="details-amount" id="detailsAmount">129</span>
+                                        <span class="details-currency">₽</span>
+                                    </div>
+                                    <p class="details-period" id="detailsPeriod">за 30 дней</p>
+                                    <div class="details-divider"></div>
+                                    <ul class="details-list" id="detailsList">
+                                        <li>Все функции клиента</li>
+                                        <li>Обход античитов</li>
+                                        <li>Бесплатные обновления</li>
+                                    </ul>
+                                    <button class="btn btn-primary btn-block" id="buyBtn">Купить за 129 ₽</button>
+                                </div>
+
+                                <div class="pricing-options">
+                                    <label class="plan-option active" data-plan="month">
+                                        <input type="radio" name="plan" value="month" checked>
+                                        <div class="plan-radio"></div>
+                                        <div class="plan-info">
+                                            <span class="plan-name">1 месяц</span>
+                                            <span class="plan-days">30 дней</span>
+                                        </div>
+                                        <span class="plan-price">129 ₽</span>
+                                    </label>
+
+                            <label class="plan-option" data-plan="year">
+                                <input type="radio" name="plan" value="year">
+                                <div class="plan-radio"></div>
+                                <div class="plan-info">
+                                    <span class="plan-name">90 дней</span>
+                                    <span class="plan-days">90 дней</span>
+                                    <span class="plan-tag popular">популярный</span>
+                                </div>
+                                <span class="plan-price">169 ₽</span>
+                            </label>
+
+                                    <label class="plan-option" data-plan="lifetime">
+                                        <input type="radio" name="plan" value="lifetime">
+                                        <div class="plan-radio"></div>
+                                        <div class="plan-info">
+                                            <span class="plan-name">Навсегда</span>
+                                            <span class="plan-days">Lifetime</span>
+                                            <span class="plan-tag lifetime">LIFETIME</span>
+                                        </div>
+                                        <span class="plan-price">229 ₽</span>
+                                    </label>
+
+                                    <label class="plan-option" data-plan="beta">
+                                        <input type="radio" name="plan" value="beta">
+                                        <div class="plan-radio"></div>
+                                        <div class="plan-info">
+                                            <span class="plan-name">BETA</span>
+                                            <span class="plan-days">премиум-доступ</span>
+                                            <span class="plan-tag beta">BETA</span>
+                                        </div>
+                                        <span class="plan-price">349 ₽</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="public/js/shader.js"></script>
+    <script src="public/js/account.js"></script>
+</body>
+</html>

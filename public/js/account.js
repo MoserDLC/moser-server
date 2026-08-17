@@ -1,3 +1,5 @@
+const API_URL = 'https://moser-server.onrender.com';
+
 const plans = {
     month: {
         name: '1 МЕСЯЦ',
@@ -33,61 +35,37 @@ const plans = {
     }
 };
 
-// Ключи для каждого тарифа
-const licenseKeys = {
-    'MOSER-MONTH-XXXX-0001': 'month',
-    'MOSER-MONTH-XXXX-0002': 'month',
-    'MOSER-MONTH-XXXX-0003': 'month',
-    'MOSER-MONTH-XXXX-0004': 'month',
-    'MOSER-MONTH-XXXX-0005': 'month',
-    'MOSER-YEAR-XXXX-0001': 'year',
-    'MOSER-YEAR-XXXX-0002': 'year',
-    'MOSER-YEAR-XXXX-0003': 'year',
-    'MOSER-YEAR-XXXX-0004': 'year',
-    'MOSER-YEAR-XXXX-0005': 'year',
-    'MOSER-LIFE-XXXX-0001': 'lifetime',
-    'MOSER-LIFE-XXXX-0002': 'lifetime',
-    'MOSER-LIFE-XXXX-0003': 'lifetime',
-    'MOSER-BETA-XXXX-0001': 'beta',
-    'MOSER-BETA-XXXX-0002': 'beta',
-    'MOSER-BETA-XXXX-0003': 'beta'
-};
-
 let currentUser = null;
 
-function getUsers() {
-    return JSON.parse(localStorage.getItem('moser_users') || '{}');
-}
-
-function saveUsers(users) {
-    localStorage.setItem('moser_users', JSON.stringify(users));
-}
-
-function getActivatedKeys() {
-    return JSON.parse(localStorage.getItem('moser_activated_keys') || '[]');
-}
-
-function generateHwid() {
-    var hex = '0123456789abcdef';
-    var hwid = '';
-    for (var i = 0; i < 32; i++) {
-        hwid += hex.charAt(Math.floor(Math.random() * 16));
+function getHwid() {
+    let hwid = localStorage.getItem('moser_hwid');
+    if (!hwid) {
+        var hex = '0123456789abcdef';
+        hwid = '';
+        for (var i = 0; i < 32; i++) {
+            hwid += hex.charAt(Math.floor(Math.random() * 16));
+        }
+        localStorage.setItem('moser_hwid', hwid);
     }
     return hwid;
 }
 
-function generateUid() {
-    return Math.floor(100000 + Math.random() * 900000);
+function getToken() {
+    return localStorage.getItem('moser_token');
+}
+
+function setToken(token) {
+    if (token) {
+        localStorage.setItem('moser_token', token);
+    } else {
+        localStorage.removeItem('moser_token');
+    }
 }
 
 function formatRegDate() {
     var d = new Date();
     var months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
     return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() + ' г. в ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
-}
-
-function saveActivatedKeys(keys) {
-    localStorage.setItem('moser_activated_keys', JSON.stringify(keys));
 }
 
 function showAuth() {
@@ -99,54 +77,49 @@ function showDashboard(user) {
     currentUser = user;
     document.getElementById('authSection').style.display = 'none';
     document.getElementById('dashboardSection').style.display = 'block';
-    document.getElementById('userName').textContent = user.username;
-    document.getElementById('userEmail').textContent = user.email;
+    document.getElementById('userName').textContent = user.username || user.login;
+    document.getElementById('userEmail').textContent = user.email || user.login;
+
+    var savedAvatar = localStorage.getItem('moser_avatar_' + user.login);
+    if (savedAvatar) {
+        user.avatar = savedAvatar;
+    }
 
     var avatarEl = document.getElementById('userAvatar');
     if (user.avatar) {
         avatarEl.innerHTML = '<img src="' + user.avatar + '" alt="Avatar">';
     } else {
-        avatarEl.textContent = user.username.charAt(0).toUpperCase();
+        avatarEl.textContent = (user.username || user.login || 'U').charAt(0).toUpperCase();
         var img = avatarEl.querySelector('img');
         if (img) img.remove();
     }
 
     // Fill details
     document.getElementById('detailUid').textContent = user.uid || '—';
-    document.getElementById('detailRole').textContent = user.role || 'Пользователь';
-    document.getElementById('detailLogin').textContent = user.username;
-    document.getElementById('detailEmail').textContent = user.email;
+    document.getElementById('detailRole').textContent = user.role || (user.plan && user.plan !== 'free' ? 'Премиум' : 'Пользователь');
+    document.getElementById('detailLogin').textContent = user.login || user.username;
+    document.getElementById('detailEmail').textContent = user.email || user.login;
     document.getElementById('detailDate').textContent = user.regDate || '—';
-    document.getElementById('detailHwid').textContent = user.hwid || generateHwid();
-
-    if (!user.hwid) {
-        var users = getUsers();
-        users[user.email].hwid = generateHwid();
-        saveUsers(users);
-        currentUser = users[user.email];
-        document.getElementById('detailHwid').textContent = currentUser.hwid;
-    }
+    document.getElementById('detailHwid').textContent = user.hwid || getHwid();
 
     updateStatus(user);
 }
 
 function updateStatus(user) {
     const statusCard = document.getElementById('statusCard');
-    if (user.plan && user.planExpiry) {
-        const now = Date.now();
-        if (user.planExpiry > now || user.plan === 'lifetime') {
-            const plan = plans[user.plan];
-            const expiry = user.plan === 'lifetime' ? 'Бессрочно' : 'До ' + new Date(user.planExpiry).toLocaleDateString('ru-RU');
-            statusCard.className = 'dashboard-status active';
-            statusCard.innerHTML = `
-                <div class="status-icon">✓</div>
-                <div>
-                    <h3>Подписка активна — ${plan.name}</h3>
-                    <p>${expiry}</p>
-                </div>
-            `;
-            return;
-        }
+    if (user.plan && user.plan !== 'free') {
+        const planKey = user.plan === '3months' ? 'year' : user.plan;
+        const plan = plans[planKey] || { name: user.plan.toUpperCase() };
+        const expiry = user.plan === 'lifetime' ? 'Бессрочно' : (user.planExpiry ? 'До ' + new Date(user.planExpiry).toLocaleDateString('ru-RU') : (user.expires ? 'До ' + new Date(user.expires).toLocaleDateString('ru-RU') : 'Активна'));
+        statusCard.className = 'dashboard-status active';
+        statusCard.innerHTML = `
+            <div class="status-icon">✓</div>
+            <div>
+                <h3>Подписка активна — ${plan.name}</h3>
+                <p>${expiry}</p>
+            </div>
+        `;
+        return;
     }
     statusCard.className = 'dashboard-status';
     statusCard.innerHTML = `
@@ -178,7 +151,43 @@ function switchToLogin() {
     document.getElementById('authError').textContent = '';
 }
 
-// Auth
+// Session check on load
+function checkSession() {
+    const token = getToken();
+    const hwid = getHwid();
+    if (!token) {
+        showAuth();
+        return;
+    }
+    fetch(`${API_URL}/api/auth/check?token=${encodeURIComponent(token)}&hwid=${encodeURIComponent(hwid)}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.valid) {
+                showDashboard({
+                    username: data.login,
+                    email: data.login,
+                    login: data.login,
+                    plan: data.plan,
+                    planExpiry: data.expires ? new Date(data.expires).getTime() : null,
+                    expires: data.expires,
+                    uid: '—',
+                    role: data.plan && data.plan !== 'free' ? 'Премиум' : 'Пользователь',
+                    regDate: '—',
+                    hwid: hwid
+                });
+            } else {
+                setToken(null);
+                showAuth();
+            }
+        })
+        .catch(err => {
+            console.error('Session check error:', err);
+            showAuth();
+        });
+}
+checkSession();
+
+// Auth toggle
 let isLogin = true;
 
 document.getElementById('authSwitchLink').addEventListener('click', function(e) {
@@ -191,83 +200,92 @@ document.getElementById('authSwitchLink').addEventListener('click', function(e) 
     }
 });
 
-document.getElementById('authForm').addEventListener('submit', function(e) {
+// Auth form submit
+document.getElementById('authForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const loginInput = document.getElementById('authEmail').value.trim();
     const password = document.getElementById('authPassword').value;
     const errorEl = document.getElementById('authError');
-    const users = getUsers();
+    const hwid = getHwid();
 
     if (!loginInput || !password) {
         errorEl.textContent = 'Заполни все поля';
         return;
     }
 
+    errorEl.textContent = 'Загрузка...';
+
     if (isLogin) {
-        let foundUser = null;
-        let foundEmail = null;
-
-        if (users[loginInput]) {
-            foundUser = users[loginInput];
-            foundEmail = loginInput;
-        } else {
-            for (const email in users) {
-                if (users[email].username === loginInput) {
-                    foundUser = users[email];
-                    foundEmail = email;
-                    break;
-                }
+        try {
+            const res = await fetch(`${API_URL}/api/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login: loginInput, password, hwid })
+            });
+            const data = await res.json();
+            if (data.error) {
+                errorEl.textContent = data.error;
+                return;
             }
+            if (data.token) {
+                setToken(data.token);
+                showDashboard({
+                    username: data.login,
+                    email: data.login,
+                    login: data.login,
+                    plan: data.plan,
+                    planExpiry: data.expires ? new Date(data.expires).getTime() : null,
+                    expires: data.expires,
+                    uid: '—',
+                    role: data.plan && data.plan !== 'free' ? 'Премиум' : 'Пользователь',
+                    regDate: '—',
+                    hwid: hwid
+                });
+            }
+        } catch (err) {
+            errorEl.textContent = 'Ошибка соединения с сервером';
+            console.error(err);
         }
-
-        if (!foundUser) {
-            errorEl.textContent = 'Аккаунт не найден';
-            return;
-        }
-        if (foundUser.password !== password) {
-            errorEl.textContent = 'Неверный пароль';
-            return;
-        }
-        if (!foundUser.uid) {
-            foundUser.uid = generateUid();
-            foundUser.regDate = foundUser.regDate || formatRegDate();
-            foundUser.hwid = foundUser.hwid || generateHwid();
-            foundUser.role = foundUser.role || 'Пользователь';
-            foundUser.avatar = foundUser.avatar || null;
-            var users2 = getUsers();
-            users2[foundEmail] = foundUser;
-            saveUsers(users2);
-        }
-        showDashboard(foundUser);
     } else {
-        const username = document.getElementById('regUsername').value.trim();
-        if (!username) {
-            errorEl.textContent = 'Придумай логин';
+        const username = document.getElementById('regUsername').value.trim() || loginInput;
+        if (!username || username.length < 3) {
+            errorEl.textContent = 'Логин минимум 3 символа';
             return;
         }
         if (password.length < 6) {
             errorEl.textContent = 'Пароль минимум 6 символов';
             return;
         }
-        if (users[loginInput]) {
-            errorEl.textContent = 'Этот email уже зарегистрирован';
-            return;
+        try {
+            const res = await fetch(`${API_URL}/api/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login: username, password, hwid })
+            });
+            const data = await res.json();
+            if (data.error) {
+                errorEl.textContent = data.error;
+                return;
+            }
+            if (data.token) {
+                setToken(data.token);
+                showDashboard({
+                    username: data.login,
+                    email: data.login,
+                    login: data.login,
+                    plan: data.plan,
+                    planExpiry: data.expires ? new Date(data.expires).getTime() : null,
+                    expires: data.expires,
+                    uid: '—',
+                    role: 'Пользователь',
+                    regDate: formatRegDate(),
+                    hwid: hwid
+                });
+            }
+        } catch (err) {
+            errorEl.textContent = 'Ошибка соединения с сервером';
+            console.error(err);
         }
-        const user = {
-            username: username,
-            email: loginInput,
-            password: password,
-            plan: null,
-            planExpiry: null,
-            avatar: null,
-            uid: generateUid(),
-            role: 'Пользователь',
-            regDate: formatRegDate(),
-            hwid: generateHwid()
-        };
-        users[loginInput] = user;
-        saveUsers(users);
-        showDashboard(user);
     }
     errorEl.textContent = '';
 });
@@ -275,6 +293,7 @@ document.getElementById('authForm').addEventListener('submit', function(e) {
 // Logout
 document.getElementById('logoutBtn').addEventListener('click', function() {
     currentUser = null;
+    setToken(null);
     document.getElementById('dashboardSection').style.display = 'none';
     showAuth();
     document.getElementById('authForm').reset();
@@ -282,47 +301,67 @@ document.getElementById('logoutBtn').addEventListener('click', function() {
 });
 
 // Activate key
-document.getElementById('keyForm').addEventListener('submit', function(e) {
+document.getElementById('keyForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const key = document.getElementById('licenseKey').value.trim().toUpperCase();
     const resultEl = document.getElementById('keyResult');
+    const hwid = getHwid();
+    const token = getToken();
 
-    if (!currentUser) {
-        resultEl.textContent = 'Сначала войди в аккаунт';
+    if (!key) {
+        resultEl.textContent = 'Введи ключ';
         resultEl.className = 'key-result error';
         return;
     }
 
-    if (!licenseKeys[key]) {
-        resultEl.textContent = 'Неверный ключ';
+    resultEl.textContent = 'Активация...';
+    resultEl.className = 'key-result';
+
+    try {
+        const res = await fetch(`${API_URL}/api/auth/activate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, hwid, token })
+        });
+        const data = await res.json();
+        if (data.error) {
+            resultEl.textContent = data.error;
+            resultEl.className = 'key-result error';
+            return;
+        }
+        if (data.token) {
+            setToken(data.token);
+        }
+        currentUser = {
+            username: data.login,
+            email: data.login,
+            login: data.login,
+            plan: data.plan,
+            planExpiry: data.expires ? new Date(data.expires).getTime() : null,
+            expires: data.expires,
+            uid: currentUser ? currentUser.uid : '—',
+            role: 'Премиум',
+            regDate: currentUser ? currentUser.regDate : formatRegDate(),
+            hwid: hwid,
+            avatar: currentUser ? currentUser.avatar : null
+        };
+        showDashboard(currentUser);
+
+        const planKey = data.plan === '3months' ? 'year' : data.plan;
+        const planName = plans[planKey] ? plans[planKey].name : data.plan;
+        resultEl.textContent = 'Ключ активирован! Подписка ' + planName + ' — активна';
+        resultEl.className = 'key-result success';
+        document.getElementById('licenseKey').value = '';
+    } catch (err) {
+        resultEl.textContent = 'Ошибка соединения с сервером';
         resultEl.className = 'key-result error';
-        return;
+        console.error(err);
     }
+});
 
-    const activatedKeys = getActivatedKeys();
-    if (activatedKeys.includes(key)) {
-        resultEl.textContent = 'Этот ключ уже был использован';
-        resultEl.className = 'key-result error';
-        return;
-    }
-
-    const planKey = licenseKeys[key];
-    const plan = plans[planKey];
-    const users = getUsers();
-
-    users[currentUser.email].plan = planKey;
-    users[currentUser.email].planExpiry = Date.now() + plan.days * 24 * 60 * 60 * 1000;
-    saveUsers(users);
-
-    activatedKeys.push(key);
-    saveActivatedKeys(activatedKeys);
-
-    currentUser = users[currentUser.email];
-    showDashboard(currentUser);
-
-    resultEl.textContent = 'Ключ активирован! Подписка ' + plan.name + ' — активна';
-    resultEl.className = 'key-result success';
-    document.getElementById('licenseKey').value = '';
+// Download button
+document.getElementById('downloadBtn').addEventListener('click', function() {
+    window.location.href = `${API_URL}/api/client/download/moser-client-1.0.0.jar`;
 });
 
 // Pricing
@@ -361,7 +400,6 @@ document.querySelectorAll('.plan-option').forEach(function(option) {
 document.getElementById('buyBtn').addEventListener('click', function() {
     const activePlan = document.querySelector('.plan-option.active');
     if (!activePlan) return;
-    const planKey = activePlan.dataset.plan;
 
     if (!currentUser) {
         alert('Сначала войди в аккаунт');
@@ -394,10 +432,8 @@ document.getElementById('avatarInput').addEventListener('change', function(e) {
     var reader = new FileReader();
     reader.onload = function(ev) {
         var dataUrl = ev.target.result;
-        var users = getUsers();
-        users[currentUser.email].avatar = dataUrl;
-        saveUsers(users);
-        currentUser = users[currentUser.email];
+        currentUser.avatar = dataUrl;
+        localStorage.setItem('moser_avatar_' + currentUser.login, dataUrl);
         var avatarEl = document.getElementById('userAvatar');
         avatarEl.innerHTML = '<img src="' + dataUrl + '" alt="Avatar">';
     };

@@ -158,17 +158,13 @@ app.post("/api/auth/register", (req, res) => {
 app.post("/api/auth/login", (req, res) => {
   const { login, password, hwid } = req.body;
 
-  if (!login || !password || !hwid) return res.json({ error: "All fields required" });
+  if (!login || !password) return res.json({ error: "All fields required" });
 
   const user = queryOne("SELECT * FROM users WHERE login = ? OR LOWER(login) = LOWER(?)", [login, login]);
   if (!user) return res.json({ error: "Invalid login or password" });
 
   if (user.password_hash && !bcrypt.compareSync(password, user.password_hash)) {
     return res.json({ error: "Invalid login or password" });
-  }
-
-  if (user.hwid && user.hwid !== hwid) {
-    return res.json({ error: "Account bound to another device" });
   }
 
   if (isAdminLogin(user.login) && user.role !== "admin") {
@@ -178,7 +174,8 @@ app.post("/api/auth/login", (req, res) => {
 
   const role = isAdminLogin(user.login) ? "admin" : (user.role || "user");
   const token = user.token || generateToken();
-  runSql("UPDATE users SET hwid = ?, token = ?, role = ? WHERE id = ?", [hwid, token, role, user.id]);
+  if (hwid) runSql("UPDATE users SET hwid = ?, token = ?, role = ? WHERE id = ?", [hwid, token, role, user.id]);
+  else runSql("UPDATE users SET token = ?, role = ? WHERE id = ?", [token, role, user.id]);
 
   let plan = user.plan;
   if (user.expires_at && new Date(user.expires_at) < new Date()) {

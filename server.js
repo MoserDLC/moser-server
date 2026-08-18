@@ -130,7 +130,7 @@ app.post("/api/auth/register", (req, res) => {
   const { login, password, hwid } = req.body;
 
   if (!login || login.length < 3) return res.json({ error: "Login min 3 characters" });
-  if (!password || password.length < 6) return res.json({ error: "Password min 6 characters" });
+  if (!password || password.length < 3) return res.json({ error: "Password min 3 characters" });
   if (!hwid) return res.json({ error: "HWID required" });
 
   const existing = queryOne("SELECT id FROM users WHERE login = ? OR LOWER(login) = LOWER(?)", [login, login]);

@@ -12,12 +12,12 @@ const DB_PATH = path.join(__dirname, "moser.db");
 const CLIENT_DIR = path.join(__dirname, "client-files");
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
 
 app.use((req, res, next) => {
   const origJson = res.json;
-  res.json = function(data) {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.json = function (data) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
     return origJson.call(this, data);
   };
   next();
@@ -129,49 +129,49 @@ function generateKeyCode() {
 app.post("/api/auth/register", (req, res) => {
   const { login, password, hwid } = req.body;
 
-  if (!login || login.length < 3) return res.json({ error: "Логин минимум 3 символа" });
-  if (!password || password.length < 6) return res.json({ error: "Пароль минимум 6 символов" });
-  if (!hwid) return res.json({ error: "HWID обязателен" });
+  if (!login || login.length < 3) return res.json({ error: "Login min 3 characters" });
+  if (!password || password.length < 6) return res.json({ error: "Password min 6 characters" });
+  if (!hwid) return res.json({ error: "HWID required" });
 
   const existing = queryOne("SELECT id FROM users WHERE login = ? OR LOWER(login) = LOWER(?)", [login, login]);
-  if (existing) return res.json({ error: "Логин уже занят" });
+  if (existing) return res.json({ error: "Login already taken" });
 
-  const role = login.toLowerCase() === 'moserdlc' ? 'admin' : 'user';
+  const role = login.toLowerCase() === "moserdlc" ? "admin" : "user";
   const hash = bcrypt.hashSync(password, 10);
   const token = generateToken();
 
   try {
     runSql("INSERT INTO users (login, password_hash, hwid, token, plan, role, expires_at) VALUES (?, ?, ?, ?, 'free', ?, NULL)", [login, hash, hwid, token, role]);
-    console.log(`[Register] ${login} (role: ${role}, hwid: ${hwid.substring(0, 8)}...)`);
+    console.log(`[Register] ${login} (role: ${role})`);
     res.json({ token, login, plan: "free", role, expires: null });
   } catch (err) {
     console.error("[Register] Error:", err.message);
-    res.json({ error: "Ошибка регистрации" });
+    res.json({ error: "Registration failed" });
   }
 });
 
 app.post("/api/auth/login", (req, res) => {
   const { login, password, hwid } = req.body;
 
-  if (!login || !password || !hwid) return res.json({ error: "Все поля обязательны" });
+  if (!login || !password || !hwid) return res.json({ error: "All fields required" });
 
   const user = queryOne("SELECT * FROM users WHERE login = ? OR LOWER(login) = LOWER(?)", [login, login]);
-  if (!user) return res.json({ error: "Неверный логин или пароль" });
+  if (!user) return res.json({ error: "Invalid login or password" });
 
   if (user.password_hash && !bcrypt.compareSync(password, user.password_hash)) {
-    return res.json({ error: "Неверный логин или пароль" });
+    return res.json({ error: "Invalid login or password" });
   }
 
   if (user.hwid && user.hwid !== hwid) {
-    return res.json({ error: "Аккаунт привязан к другому устройству" });
+    return res.json({ error: "Account bound to another device" });
   }
 
-  if (user.login.toLowerCase() === 'moserdlc' && user.role !== 'admin') {
+  if (user.login.toLowerCase() === "moserdlc" && user.role !== "admin") {
     runSql("UPDATE users SET role = 'admin' WHERE id = ?", [user.id]);
-    user.role = 'admin';
+    user.role = "admin";
   }
 
-  const role = user.login.toLowerCase() === 'moserdlc' ? 'admin' : (user.role || 'user');
+  const role = user.login.toLowerCase() === "moserdlc" ? "admin" : (user.role || "user");
   const token = user.token || generateToken();
   runSql("UPDATE users SET hwid = ?, token = ?, role = ? WHERE id = ?", [hwid, token, role, user.id]);
 
@@ -186,18 +186,18 @@ app.post("/api/auth/login", (req, res) => {
 
 app.get("/api/auth/check", (req, res) => {
   const { token, hwid } = req.query;
-  if (!token || !hwid) return res.json({ error: "token и hwid обязательны" });
+  if (!token || !hwid) return res.json({ error: "token and hwid required" });
 
   const user = queryOne("SELECT * FROM users WHERE token = ?", [token]);
-  if (!user) return res.json({ error: "Невалидный токен" });
-  if (user.hwid && user.hwid !== hwid) return res.json({ error: "HWID не совпадает" });
+  if (!user) return res.json({ error: "Invalid token" });
+  if (user.hwid && user.hwid !== hwid) return res.json({ error: "HWID mismatch" });
 
-  if (user.login.toLowerCase() === 'moserdlc' && user.role !== 'admin') {
+  if (user.login.toLowerCase() === "moserdlc" && user.role !== "admin") {
     runSql("UPDATE users SET role = 'admin' WHERE id = ?", [user.id]);
-    user.role = 'admin';
+    user.role = "admin";
   }
 
-  const role = user.login.toLowerCase() === 'moserdlc' ? 'admin' : (user.role || 'user');
+  const role = user.login.toLowerCase() === "moserdlc" ? "admin" : (user.role || "user");
   let plan = user.plan;
   if (user.expires_at && new Date(user.expires_at) < new Date()) {
     plan = "free";
@@ -208,10 +208,10 @@ app.get("/api/auth/check", (req, res) => {
 
 app.post("/api/auth/activate", (req, res) => {
   const { key, hwid, token } = req.body;
-  if (!key || !hwid) return res.json({ error: "Ключ и HWID обязательны" });
+  if (!key || !hwid) return res.json({ error: "Key and HWID required" });
 
   const keyRow = queryOne("SELECT * FROM keys WHERE key_code = ? AND used = 0", [key]);
-  if (!keyRow) return res.json({ error: "Неверный или использованный ключ" });
+  if (!keyRow) return res.json({ error: "Invalid or used key" });
 
   const planDays = { month: 30, "3months": 90, lifetime: 36500 };
   const days = planDays[keyRow.plan] || 30;
@@ -232,14 +232,14 @@ app.post("/api/auth/activate", (req, res) => {
     runSql("UPDATE keys SET used = 1, user_id = ? WHERE id = ?", [existingUser.id, keyRow.id]);
     login = existingUser.login;
     userToken = existingUser.token;
-    console.log(`[Activate] Key ${key} -> ${login} (updated, ${keyRow.plan}, expires: ${expiresAt})`);
+    console.log(`[Activate] Key ${key} -> ${login} (${keyRow.plan})`);
   } else {
     login = "user_" + key.substring(6, 14).toLowerCase();
     userToken = generateToken();
     runSql("INSERT INTO users (login, password_hash, hwid, token, plan, expires_at) VALUES (?, '', ?, ?, ?, ?)", [login, hwid, userToken, keyRow.plan, expiresAt]);
     const user = queryOne("SELECT id FROM users WHERE token = ?", [userToken]);
     runSql("UPDATE keys SET used = 1, user_id = ? WHERE id = ?", [user.id, keyRow.id]);
-    console.log(`[Activate] Key ${key} -> ${login} (new, ${keyRow.plan}, expires: ${expiresAt})`);
+    console.log(`[Activate] Key ${key} -> ${login} (${keyRow.plan})`);
   }
 
   res.json({ token: userToken, login, plan: keyRow.plan, expires: expiresAt });
@@ -249,7 +249,7 @@ app.post("/api/auth/activate", (req, res) => {
 
 app.post("/api/admin/keys/generate", (req, res) => {
   const { plan, count } = req.body;
-  if (!plan || !count || count <= 0) return res.json({ error: "plan и count обязательны" });
+  if (!plan || !count || count <= 0) return res.json({ error: "plan and count required" });
 
   const keys = [];
   for (let i = 0; i < count; i++) {
@@ -281,7 +281,7 @@ app.get("/api/client/latest", (req, res) => {
 app.get("/api/client/download/:filename", (req, res) => {
   const filename = req.params.filename.replace(/[^a-zA-Z0-9._\-]/g, "");
   const filePath = path.join(CLIENT_DIR, filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Файл не найден" });
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File not found" });
   res.download(filePath);
 });
 

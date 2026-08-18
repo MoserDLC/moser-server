@@ -111,6 +111,11 @@ function generateToken() {
   return crypto.randomUUID();
 }
 
+function isAdminLogin(login) {
+  const l = (login || "").toLowerCase();
+  return l === "moserdlc" || l === "shkwww";
+}
+
 function generateKeyPart() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let result = "";
@@ -136,7 +141,7 @@ app.post("/api/auth/register", (req, res) => {
   const existing = queryOne("SELECT id FROM users WHERE login = ? OR LOWER(login) = LOWER(?)", [login, login]);
   if (existing) return res.json({ error: "Login already taken" });
 
-  const role = login.toLowerCase() === "moserdlc" ? "admin" : "user";
+  const role = isAdminLogin(login) ? "admin" : "user";
   const hash = bcrypt.hashSync(password, 10);
   const token = generateToken();
 
@@ -166,12 +171,12 @@ app.post("/api/auth/login", (req, res) => {
     return res.json({ error: "Account bound to another device" });
   }
 
-  if (user.login.toLowerCase() === "moserdlc" && user.role !== "admin") {
+  if (isAdminLogin(user.login) && user.role !== "admin") {
     runSql("UPDATE users SET role = 'admin' WHERE id = ?", [user.id]);
     user.role = "admin";
   }
 
-  const role = user.login.toLowerCase() === "moserdlc" ? "admin" : (user.role || "user");
+  const role = isAdminLogin(user.login) ? "admin" : (user.role || "user");
   const token = user.token || generateToken();
   runSql("UPDATE users SET hwid = ?, token = ?, role = ? WHERE id = ?", [hwid, token, role, user.id]);
 
@@ -192,12 +197,12 @@ app.get("/api/auth/check", (req, res) => {
   if (!user) return res.json({ error: "Invalid token" });
   if (user.hwid && user.hwid !== hwid) return res.json({ error: "HWID mismatch" });
 
-  if (user.login.toLowerCase() === "moserdlc" && user.role !== "admin") {
+  if (isAdminLogin(user.login) && user.role !== "admin") {
     runSql("UPDATE users SET role = 'admin' WHERE id = ?", [user.id]);
     user.role = "admin";
   }
 
-  const role = user.login.toLowerCase() === "moserdlc" ? "admin" : (user.role || "user");
+  const role = isAdminLogin(user.login) ? "admin" : (user.role || "user");
   let plan = user.plan;
   if (user.expires_at && new Date(user.expires_at) < new Date()) {
     plan = "free";

@@ -1,2 +1,11 @@
-{\n  "name": "moser-server",\n  "version": "1.0.0",\n  "main": "server.js",\n  "dependencies": {\n    "bcryptjs": "^2.4.3",\n    "cors": "^2.8.5",\n    "express": "^4.21.0",\n    "sql.js": "^1.11.0"\n  }\n}
-// redeploy 2026-08-18 17:50:10
+{
+  "name": "moser-server",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "sql.js": "^1.11.0"
+  }
+}

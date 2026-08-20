@@ -287,6 +287,15 @@ app.get("/api/client/download/:filename", (req, res) => {
   res.download(filePath);
 });
 
+app.post("/api/admin/clear-hwid", (req, res) => {
+  const { login } = req.body;
+  if (!login) return res.json({ error: "login required" });
+  const user = queryOne("SELECT * FROM users WHERE login = ? OR LOWER(login) = LOWER(?)", [login, login]);
+  if (!user) return res.json({ error: "User not found" });
+  runSql("UPDATE users SET hwid = '' WHERE id = ?", [user.id]);
+  res.json({ ok: true, login: user.login });
+});
+
 // --- Start ---
 
 initDB().then(() => {
